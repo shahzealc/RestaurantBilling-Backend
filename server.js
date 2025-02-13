@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const authRoutes = require("./Routes/authRoutes.js");
 const itemRoutes = require("./Routes/itemRoutes.js");
+const orderRoutes = require("./Routes/orderRoutes.js");
 const { validateToken, verifyToken } = require("./Controller/authController.js");
 const { connectMongoose } = require("./config/dbconnect");
 const app = express();
@@ -22,6 +23,7 @@ app.use(express.json());
 
 app.use("/auth", authRoutes);
 app.use("/item", verifyToken, itemRoutes);
+app.use("/order", verifyToken, orderRoutes);
 app.use("/validateToken", validateToken);
 
 const PORT = process.env.PORT;

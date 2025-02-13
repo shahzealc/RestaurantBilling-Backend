@@ -25,4 +25,4 @@ dist/
 build/
 
 #upload folder
-upload/*
+uploads/*
