@@ -1,15 +1,12 @@
 const express = require("express");
 const cors = require("cors");
 const authRoutes = require("./Routes/authRoutes.js");
-require("dotenv").config();
-const mongoose = require("mongoose");
-const { validateToken } = require("./Controller/authController.js");
+const itemRoutes = require("./Routes/itemRoutes.js");
+const { validateToken, verifyToken } = require("./Controller/authController.js");
+const { connectMongoose } = require("./config/dbconnect");
 const app = express();
 
-mongoose
-    .connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
-    .then(() => console.log("MongoDB Connected"))
-    .catch((err) => console.error("MongoDB Connection Error:", err));
+require("dotenv").config();
 
 const corsOptions = {
     origin: "*", // Set allowed origin
@@ -18,10 +15,13 @@ const corsOptions = {
     optionsSuccessStatus: 200
 };
 
+connectMongoose();
+
 app.use(cors(corsOptions));
 app.use(express.json());
 
 app.use("/auth", authRoutes);
+app.use("/item", verifyToken, itemRoutes);
 app.use("/validateToken", validateToken);
 
 const PORT = process.env.PORT;
