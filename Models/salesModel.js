@@ -1,10 +1,11 @@
-import mongoose from "mongoose";
+import mongoose, { mongo } from "mongoose";
 
-const orderSchema = new mongoose.Schema({
+const salesSchema = new mongoose.Schema({
+
     restaurantId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Restaurant",
         required: true,
+        ref: "Restaurant",
     },
     items: [
         {
@@ -24,14 +25,29 @@ const orderSchema = new mongoose.Schema({
             }
         }
     ],
-    tableNumber: {
-        type: Number,
-        required: true,
-    },
     totalOrderPrice: {
         type: Number,
         required: true,
+    },
+    discount: {
+        type: String,
+        required: false,
+        default: null
+    },
+    coupon: {
+        type: String,
+        required: false,
+        default: null
+    },
+    finalPrice: {
+        type: Number,
+        require: true,
+    },
+    paymentId: {
+        type: mongoose.Schema.Types.ObjectId,
+        required: true,
+        ref: "Payment"
     }
-}, { timestamps: true });
+});
 
-export const OrderModel = mongoose.model("Order", orderSchema);
+export const SalesModel = mongoose.Model("Sales", salesSchema);

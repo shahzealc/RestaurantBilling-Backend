@@ -2,6 +2,10 @@ import mongoose from "mongoose";
 import { OrderModel } from "../Models/orderModel.js";
 import { RestaurantModel } from "../Models/restaurantModel.js";
 
+import mongoose from "mongoose";
+import { OrderModel } from "../Models/orderModel.js";
+import { ItemModel } from "../Models/itemModel.js";
+
 export const addOrder = async (req, res) => {
     try {
         const { restaurantId, items, tableNumber } = req.body;
@@ -10,16 +14,42 @@ export const addOrder = async (req, res) => {
             return res.status(400).json({ message: "Invalid restaurant ID" });
         }
 
+        // Fetch item prices from DB
+        const itemIds = items.map(item => item.itemId);
+        const foundItems = await ItemModel.find({ _id: { $in: itemIds } });
+
+        if (foundItems.length !== items.length) {
+            return res.status(400).json({ message: "Some items not found in the database" });
+        }
+
+        let totalOrderPrice = 0;
+        const processedItems = items.map(orderItem => {
+            const itemDetails = foundItems.find(i => i._id.toString() === orderItem.itemId);
+
+            if (!itemDetails) {
+                throw new Error(`Item ID ${orderItem.itemId} not found`);
+            }
+
+            const itemTotalPrice = itemDetails.price * orderItem.quantity;
+            totalOrderPrice += itemTotalPrice;
+
+            return {
+                itemId: orderItem.itemId,
+                quantity: orderItem.quantity,
+                itemTotalPrice: itemTotalPrice
+            };
+        });
+
         const newOrder = new OrderModel({
-            restaurantId: restaurantId,
-            items: items,
-            tableNumber: tableNumber
+            restaurantId,
+            items: processedItems,
+            tableNumber,
+            totalOrderPrice
         });
 
         const responseOrder = await newOrder.save();
 
         res.status(201).json(responseOrder);
-
     } catch (error) {
         console.log(error);
         res.status(500).json({ message: "Server error while adding order" });
@@ -101,16 +131,46 @@ export const getEmptyTable = async (req, res) => {
 
 export const updateOrder = async (req, res) => {
     try {
-        const { itemId } = req.params;
-        const updateData = req.body;
+        const { orderId } = req.params;
+        const { items } = req.body;
 
-        if (!Object.keys(updateData).length) {
-            return res.status(400).json({ message: "No fields provided for update" });
+        if (!mongoose.Types.ObjectId.isValid(orderId)) {
+            return res.status(400).json({ message: "Invalid order ID" });
         }
 
-        const updatedOrder = await OrderModel.findByIdAndUpdate(itemId, updateData, {
-            new: true,
-        });
+        // Extract item IDs
+        const itemIds = items.map(item => item.itemId);
+        
+        // Fetch item data from DB
+        const itemsData = await ItemModel.find({ _id: { $in: itemIds } });
+
+        // Check if all items exist
+        if (itemIds.length !== itemsData.length) {
+            return res.status(404).json({ message: "Some items not found" });
+        }
+
+        // Calculate total price
+        let totalOrderPrice = 0;
+        const newItems = items.map(item => {
+            const itemData = itemsData.find(i => i._id.toString() === item.itemId);
+            if (!itemData) return null; // Safety check
+
+            const itemTotalPrice = itemData.price * item.quantity;
+            totalOrderPrice += itemTotalPrice;
+
+            return {
+                itemId: item.itemId,
+                quantity: item.quantity,
+                itemTotalPrice: itemTotalPrice
+            };
+        }).filter(Boolean); // Remove null values
+
+        // Update order in DB
+        const updatedOrder = await OrderModel.findByIdAndUpdate(
+            orderId, 
+            { items: newItems, totalOrderPrice }, 
+            { new: true }
+        );
 
         if (!updatedOrder) {
             return res.status(404).json({ message: "Order not found" });
@@ -120,7 +180,7 @@ export const updateOrder = async (req, res) => {
 
     } catch (error) {
         console.log(error);
-        res.status(500).json({ message: "Server error while updating item" });
+        res.status(500).json({ message: "Server error while updating order" });
     }
 };
 
